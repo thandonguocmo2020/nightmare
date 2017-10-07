@@ -1,0 +1,281 @@
+var Nightmare = require('nightmare');
+
+module.exports = (uri) => {
+    const nightmare = Nightmare({
+        waitTimeout: 10000, // chờ tải trang
+        show: true  // show etronec
+    });
+
+
+    /-- Bóc tách cookie từ website ---/
+
+      nightmare
+        .goto('http://' + uri)
+        .cookies.get()
+        // ... other actions ...
+        .then((cookie) => {
+            // ...
+           console.log(cookie);
+        }).catch(err=>{
+            console.log(err);
+        })
+
+        // hoặc từ một mảng dữ liệu trả về ta có thể lọc các path và secure
+         // ----VÍ Dụ ----//
+        [ { name: '__cfduid',
+        value: 'd1ff237099f2b483b5af30fa5242e5f091507366077',
+        domain: '.phimmoi.net',
+        hostOnly: false,
+        path: '/',
+        secure: false,
+        httpOnly: true,
+        session: false,
+        expirationDate: 1538902040.735194 },
+        { name: 'proxy_s_sv',
+        value: '1507367842409',
+        domain: 'www.phimmoi.net',
+        hostOnly: true,
+        path: '/',
+        secure: false,
+        httpOnly: false,
+        session: false,
+        expirationDate: 1507369642.411069 
+        }];
+
+        // ví dụ lọc  với chỉ lấy các cookie của path /
+        // ----VÍ Dụ ----//
+        nightmare
+        .goto('http://phimmoi.net')
+        .cookies.get({
+            path: '/',
+            secure: true
+        })
+        .then((cookies) => {
+            // do something with the cookies
+        })
+
+    
+
+    /---  Sử dụng cookie ---/ 
+
+       // ----VÍ Dụ ----//
+       const cookies = [cookie];
+       nightmare
+       .cookies.set(cookies)
+       .goto("https://www.navossoc.com/tests/cookie.php"); 
+
+        // ---- hoặc VÍ Dụ ----// 
+
+       nightmare
+        .goto('http://google.com')
+        .cookies.set({
+            name: 'token',
+            value: 'some token',
+            path: '/query',
+            secure: true
+        })
+        // ... other actions ...
+        .then(() => {
+            // ...
+        })
+   
+
+
+
+    /---  Sử dụng để lấy dữ liệu từ document trả về  ---/
+ 
+
+    nightmare.goto('http://cnn.com')
+    .evaluate(() => {
+     // document.body.innerHTML;
+    // document.head.innerHTML;
+
+      return document.title;
+    })
+    .end()
+    .then((title) => {
+      console.log(title);
+    })
+
+    /--- Sử dụng để tương tác với form search với github nightmare ---/
+
+    nightmare
+    .goto('https://duckduckgo.com')
+    .type('#search_form_input_homepage', 'github nightmare')
+    .click('#search_button_homepage')
+    .wait('#r1-0 a.result__a')
+    .evaluate(() => document.querySelector('#r1-0 a.result__a').href)
+    .end()
+    .then(console.log)
+    .catch((error) => {
+      console.error('Search failed:', error);
+    });
+
+    /--  Sử dụng để get all css - js -img --/
+
+    nightmare
+    .useragent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:47.0) Gecko/20100101 Firefox/47.0')
+    .goto(uri)
+    .viewport(1680, 845)
+    .type('body', '+\u000d')
+    .evaluate(function () {
+
+        // function isUrlAbsolute(url) {
+        //     if (url.indexOf('//') === 0) { return true; } // URL is protocol-relative (= absolute)
+        //     if (url.indexOf('://') === -1) { return false; } // URL has no protocol (= relative)
+        //     if (url.indexOf('.') === -1) { return false; } // URL does not contain a dot, i.e. no TLD (= relative, possibly REST)
+        //     if (url.indexOf('/') === -1) { return false; } // URL does not contain a single slash (= relative)
+        //     if (url.indexOf(':') > url.indexOf('/')) { return false; } // The first colon comes after the first slash (= relative)
+        //     if (url.indexOf('://') < url.indexOf('.')) { return true; } // Protocol is defined before first dot (= absolute)
+        //     return false; // Anything else must be relative
+        // }
+
+        const isUrlAbsolute = (url) => (url.indexOf('//') === 0 ? true : url.indexOf('://') === -1 ? false : url.indexOf('.') === -1 ? false : url.indexOf('/') === -1 ? false : url.indexOf(':') > url.indexOf('/') ? false : url.indexOf('://') < url.indexOf('.') ? true : false)
+
+        let page = document.documentElement.innerHTML;
+        let host = location.protocol + '//' + location.hostname;
+
+
+
+        // css link ! abousolute
+        let _Css = [];
+
+        let css = document.getElementsByTagName("link");
+
+        for (var i = 0; i < css.length; i++) {
+
+            if (css[i].hasAttribute("href") && css[i].getAttribute('rel') == "stylesheet") {
+                // check not abousolute
+                if (!isUrlAbsolute(css[i].getAttribute('href'))) {
+                    _Css.push(css[i].getAttribute('href'));
+                }
+            }
+        }
+
+        // js link ! abousolute
+
+        let _Js = [];
+        let js = document.getElementsByTagName("script");
+
+        for (var i = 0; i < js.length; i++) {
+
+            if (js[i].hasAttribute("src")) {
+                if (!isUrlAbsolute(js[i].getAttribute('src'))) {
+                    _Js.push(js[i].getAttribute('src'));
+                }
+            }
+        }
+
+
+        var _imgs = [];
+
+        // // get list link style uri. after find link css replace
+        var _img = document.getElementsByTagName("img");
+
+        for (var i = 0; i < _img.length; i++) {
+            if (_img[i].hasAttribute("src")) {
+                if (!isUrlAbsolute(_img[i].getAttribute('src'))) {
+                    _imgs.push(_img[i].getAttribute('src'));
+                }
+            }
+        }
+
+        // var _alink = [];
+
+        // // // get list link style uri. after find link css replace
+        // var _img = document.getElementsByTagName("img");
+
+        // for (var i = 0; i < _img.length; i++) {
+        //     if (_img[i].hasAttribute("src")) {
+        //         if (!isUrlAbsolute(_img[i].getAttribute('src'))) {
+        //             _img.push(_img[i].getAttribute('src'));
+        //         }
+        //     }
+        // }
+
+        return {
+            host: host,
+            page: page,
+            css: _Css,
+            js: _Js,
+            img: _imgs
+        }
+
+        })
+        .end().then(function (data) {
+            var page = data.page;
+            let host = data.host;
+            
+            // run 
+            if (data.css.length > 0) {
+                let css = data.css.map(item => {
+                    let re = new RegExp(item, "gi");
+                    let _srtRelace = host + item
+                    page = page.replace(re, _srtRelace);
+                })
+            }
+
+            if (data.js.length > 0) {
+                let css = data.js.map(item => {
+                    let re = new RegExp(item, "gi");
+                    let _srtRelace = host + item
+                    page = page.replace(re, _srtRelace);
+                })
+            }
+
+            if (data.img.length > 0) {
+                let css = data.img.map(item => {
+                    let re = new RegExp(item, "gi");
+                    let _srtRelace = host + item
+                    page = page.replace(re, _srtRelace);
+                })
+            }
+        
+            fs.writeFile('page.html', page, function (err) {
+                if (err) return console.log(err);
+                // console.log(document);
+                reply.file(path.join(__dirname, 'page.html'));
+            });
+
+        });
+
+
+       /-- Xử dụng một proxy server để truy cập internet điều hướng từ proxy này sẽ gọi tới một trang cụ thể --/
+
+       // cấu hình serer
+       const proxyNightmare = Nightmare({
+        switches: {
+          'proxy-server': 'my_proxy_server.example.com:8080' // set the proxy server here ...
+        },
+        show: true
+      });
+
+      // đăng nhập 
+
+      proxyNightmare
+      .authentication('proxyUsername', 'proxyPassword') // ... and authenticate here before `goto`
+      .goto('http://www.ipchicken.com')
+      .evaluate(() => {
+        return document.querySelector('b').innerText.replace(/[^\d\.]/g, '');
+      })
+      .end()
+      .then((ip) => { // This will log the Proxy's IP
+        console.log('proxy IP:', ip);
+      });
+    
+    // nhận ip trả lại
+
+    const regularNightmare = Nightmare({ show: true });
+    
+    regularNightmare
+      .goto('http://www.ipchicken.com')
+      .evaluate(() =>document.querySelector('b').innerText.replace(/[^\d\.]/g, '');)
+      .end()
+      .then((ip) => { // This will log the your local IP
+        console.log('local IP:', ip);
+      });
+
+
+
+
+}
